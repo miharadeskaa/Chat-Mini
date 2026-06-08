@@ -89,8 +89,18 @@ class AskController extends Controller
         // 4. On récupère tout l'historique pour donner du contexte à l'IA
         $history = $conversation->messages()->select('role', 'content')->oldest()->get()->toArray();
 
+        // ---- NOUVEAU CODE : INJECTION DU COACH SPORTIF ----
+        $systemPrompt = [
+            'role' => 'system',
+            'content' => "Tu es un coach sportif virtuel expert en fitness, musculation et nutrition. Ton ton est motivant, énergique et bienveillant, tu tutoies l'utilisateur. Règle absolue : Tu ne dois répondre qu'aux questions liées au sport, à l'entraînement physique et à l'alimentation. Si l'utilisateur te pose une question sur un tout autre sujet (comme l'informatique, la politique, etc.), tu dois refuser poliment de répondre et le recadrer sur le sport."
+        ];
+        
+        // La fonction array_unshift ajoute notre message système tout au début du tableau
+        array_unshift($history, $systemPrompt);
+        // ---------------------------------------------------
+
         try {
-            // 5. Appel à l'API (OpenRouter)
+            // 5. Appel à l'API (OpenRouter) avec l'historique modifié
             $response = $this->askService->sendMessage(
                 messages: $history,
                 model: $request->model
