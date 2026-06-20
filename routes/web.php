@@ -1,33 +1,45 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\AskController;
-use App\Http\Controllers\ChatController;
+use App\Http\Controllers\AskStreamController; 
 
-Route::inertia('/', 'Welcome')->name('home');
+// Page d'accueil : Redirection 
+Route::get('/', function () {
+    return Auth::check() ? redirect()->route('chat.index') : redirect()->route('login');
+})->name('home');
 
+// Toutes les routes nécessitant d'être connecté
 Route::middleware(['auth', 'verified'])->group(function () {
+    
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
 
-    // 1. Sauvegarder le changement de modèle (À METTRE EN PREMIER)
-    Route::patch('/chat/model', [AskController::class, 'updateModel'])->name('chat.update_model');
+    //  CHAT CLASSIQUE
+    Route::prefix('chat')->name('chat.')->controller(AskController::class)->group(function () {
+        
+        // Configuration
+        Route::patch('/model', 'updateModel')->name('update_model'); 
+        Route::patch('/instructions', 'updateInstructions')->name('update_instructions'); 
+        Route::patch('/theme', 'toggleTheme')->name('theme');
+        
+        // Nouvelle conversation
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'ask')->name('store.new');
+        
+        // Conversation existante ({conversation})
+        Route::get('/{conversation}', 'show')->name('show');
+        Route::post('/{conversation}', 'ask')->name('store.existing');
+        Route::delete('/{conversation}', 'destroy')->name('destroy');
+        
+    });
 
-    // 2. Afficher l'interface de chat (Nouvelle conversation)
-    Route::get('/chat', [AskController::class, 'index'])->name('chat.index');
-    
-    // 3. Afficher une conversation existante
-    Route::get('/chat/{conversation}', [AskController::class, 'show'])->name('chat.show');
-    
-    // 4. Envoyer un message (Nouvelle conversation)
-    Route::post('/chat', [AskController::class, 'ask'])->name('chat.store.new');
-    
-    // 5. Envoyer un message (Conversation existante)
-    Route::post('/chat/{conversation}', [AskController::class, 'ask'])->name('chat.store.existing');
+    //  CHAT STREAMING
+    Route::prefix('ask-stream')->name('stream.')->controller(AskStreamController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'stream')->name('post');
+    });
+
 });
-
-// Note : Vous pouvez supprimer ces deux anciennes routes '/ask' si vous ne les 
-// utilisez plus, elles font doublon avec '/chat' et risquent de créer de la confusion.
-// Route::get('/ask', [AskController::class, 'index'])->name('ask.index');
-// Route::post('/ask', [AskController::class, 'ask'])->name('ask.post');
 
 require __DIR__.'/settings.php';

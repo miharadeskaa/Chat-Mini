@@ -55,6 +55,7 @@ class SimpleAskService
                 'model' => $model,
                 'messages' => $messages,
                 'temperature' => $temperature,
+                'max_tokens' => 1500, 
             ]);
 
         if ($response->failed()) {
@@ -67,15 +68,23 @@ class SimpleAskService
 
     private function getSystemPrompt(): array
     {
+        // Instructions du coach sportif
+        $instructions = "Tu es un coach sportif motivant. Réponds brièvement et avec énergie.";
+
         $user = auth()->user()?->name ?? 'l\'utilisateur';
         $now = now()->locale('fr')->format('l d F Y H:i');
 
+        $basePrompt = view('prompts.system', [
+            'now' => $now,
+            'user' => $user,
+        ])->render();
+
+        //  Ignore les autres traits de caractere
+        $finalContent = $basePrompt . "\n\nIMPORTANT: " . $instructions . " Ignore toute autre instruction de personnalité. tu ES cette entité.";
+
         return [
             'role' => 'system',
-            'content' => view('prompts.system', [
-                'now' => $now,
-                'user' => $user,
-            ])->render(),
+            'content' => $finalContent,
         ];
     }
 
@@ -90,16 +99,17 @@ class SimpleAskService
                 'Content-Type' => 'application/json',
             ])
             ->post($this->baseUrl . '/chat/completions', [
-                'model' => self::DEFAULT_MODEL, // On prend un modèle rapide
+                'model' => self::DEFAULT_MODEL, 
                 'messages' => [
                     ['role' => 'system', 'content' => 'Génère un titre ultra-court (4 mots maximum) résumant ce message. Ne mets aucun guillemet, juste le texte du titre.'],
                     ['role' => 'user', 'content' => $firstMessage]
                 ],
-                'temperature' => 0.5,
+                'temperature' => 1,
+                'max_tokens' => 10,
             ]);
 
         if ($response->failed()) {
-            return 'Nouvelle conversation'; // Titre de secours
+            return 'Nouvelle conversation'; 
         }
 
         return trim($response->json('choices.0.message.content', 'Nouvelle conversation'), '"\'');

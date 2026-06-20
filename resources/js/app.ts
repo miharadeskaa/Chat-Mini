@@ -5,7 +5,8 @@ import AuthLayout from '@/layouts/AuthLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-// Il manque souvent ces deux imports de base pour Vue :
+
+
 import { createApp, h } from 'vue'; 
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -13,14 +14,19 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
 
-    // Correction avec "pages" en minuscule (si votre dossier est en minuscule)
     resolve: (name) => resolvePageComponent(`./pages/${name}.vue`, import.meta.glob('./pages/**/*.vue')),
 
-    // Ce bloc est indispensable pour afficher l'application !
     setup({ el, App, props, plugin }) {
-        createApp({ render: () => h(App, props) })
-            .use(plugin)
-            .mount(el);
+        //  On initialise l'application avec createSSRApp
+        const vueApp = createApp({ render: () => h(App, props) })
+            .use(plugin);
+            
+        //  On empêche Vue d'essayer de se "monter" si on est sur le serveur
+        if (typeof window !== 'undefined' && el) {
+            vueApp.mount(el);
+        }
+        
+        return vueApp;
     },
 
     layout: (name) => {
@@ -40,8 +46,11 @@ createInertiaApp({
     },
 });
 
-// This will set light / dark mode on page load...
-initializeTheme();
+//  On isole les fonctions propres au navigateur dans une condition
+if (typeof window !== 'undefined') {
+    // This will set light / dark mode on page load...
+    initializeTheme();
 
-// This will listen for flash toast data from the server...
-initializeFlashToast();
+    // This will listen for flash toast data from the server...
+    initializeFlashToast();
+}
